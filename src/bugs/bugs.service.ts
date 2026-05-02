@@ -115,6 +115,59 @@ export class BugsService {
     });
   }
 
+  async getAllActivity() {
+    const logs = await this.prisma.activityLog.findMany({
+      where: { entityType: 'BUG' },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+
+    const userIds = [...new Set(logs.map(log => (log.metadata as any)?.userId).filter(Boolean))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds as string[] } },
+      select: { id: true, name: true }
+    });
+    const userMap = new Map(users.map(u => [u.id, u.name]));
+    
+    const assigneeIds = [...new Set(logs.flatMap(log => {
+      const changes = (log.metadata as any)?.changes || [];
+      const assigneeChange = changes.find((c: any) => c.field === 'assignedTo');
+      if (assigneeChange) return [assigneeChange.old, assigneeChange.new];
+      return [];
+    }).filter(Boolean))];
+    
+    const assignees = await this.prisma.user.findMany({
+      where: { id: { in: assigneeIds as string[] } },
+      select: { id: true, name: true }
+    });
+    const assigneeMap = new Map(assignees.map(u => [u.id, u.name]));
+
+    const bugIds = [...new Set(logs.map(log => (log.metadata as any)?.bugId).filter(Boolean))];
+    const bugs = await this.prisma.bug.findMany({
+      where: { id: { in: bugIds as string[] } },
+      select: { id: true, title: true }
+    });
+    const bugMap = new Map(bugs.map(b => [b.id, b.title]));
+
+    return logs.map(log => {
+      const metadata: any = log.metadata || {};
+      return {
+        ...log,
+        userName: userMap.get(metadata.userId) || 'System',
+        bugTitle: bugMap.get(metadata.bugId) || 'Unknown Bug',
+        metadata: {
+          ...metadata,
+          changes: (metadata.changes || []).map((c: any) => {
+            if (c.field === 'assignedTo') {
+              return { ...c, oldName: c.old ? assigneeMap.get(c.old) : 'Unassigned', newName: c.new ? assigneeMap.get(c.new) : 'Unassigned' };
+            }
+            return c;
+          })
+        }
+      };
+    });
+  }
+
   async remove(id: string) {
     return this.prisma.bug.delete({
       where: { id },

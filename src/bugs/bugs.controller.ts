@@ -22,6 +22,11 @@ export class BugsController {
     return this.bugsService.findAll(req.user.userId, projectId);
   }
 
+  @Get('activity/all')
+  getAllActivity() {
+    return this.bugsService.getAllActivity();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.bugsService.findOne(id);
