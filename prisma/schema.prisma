@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  avatarUrl     String?
+  organizations Organization[]
+  memberships   Member[]
+  reportedBugs  Bug[]          @relation("Reporter")
+  assignedBugs  Bug[]          @relation("Assignee")
+  comments      Comment[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Organization {
+  id        String    @id @default(uuid())
+  name      String
+  ownerId   String
+  owner     User      @relation(fields: [ownerId], references: [id])
+  projects  Project[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Project {
+  id             String       @id @default(uuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  members        Member[]
+  bugs           Bug[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Member {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String
+  role      Role     @default(TESTER)
+  user      User     @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, projectId])
+}
+
+enum Role {
+  TESTER
+  DEVELOPER
+  MANAGER
+}
+
+model Bug {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  status      BugStatus    @default(OPEN)
+  severity    BugSeverity
+  priority    BugPriority
+  assignedTo  String?
+  reportedBy  String
+  projectId   String
+  assignee    User?        @relation("Assignee", fields: [assignedTo], references: [id])
+  reporter    User         @relation("Reporter", fields: [reportedBy], references: [id])
+  project     Project      @relation(fields: [projectId], references: [id])
+  comments    Comment[]
+  attachments Attachment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum BugStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  FIXED
+  VERIFIED
+  CLOSED
+  REOPENED
+}
+
+enum BugSeverity {
+  LOW
+  MINOR
+  MAJOR
+  CRITICAL
+  BLOCKER
+}
+
+enum BugPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Comment {
+  id              String       @id @default(uuid())
+  bugId           String
+  userId          String
+  parentCommentId String?
+  content         String
+  bug             Bug          @relation(fields: [bugId], references: [id])
+  user            User         @relation(fields: [userId], references: [id])
+  parentComment   Comment?     @relation("Thread", fields: [parentCommentId], references: [id])
+  replies         Comment[]    @relation("Thread")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  bugId     String
+  fileUrl   String
+  fileType  String
+  bug       Bug      @relation(fields: [bugId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  entityType String
+  action     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
