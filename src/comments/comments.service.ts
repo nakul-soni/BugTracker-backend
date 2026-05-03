@@ -11,6 +11,15 @@ export class CommentsService {
       data,
       include: { user: true }
     });
+
+    await this.prisma.activityLog.create({
+      data: {
+        entityType: 'BUG',
+        action: 'COMMENTED',
+        metadata: { bugId: data.bugId, userId: data.userId, commentId: comment.id },
+      }
+    });
+
     this.eventsGateway.emitCommentAdded(data.bugId);
     return comment;
   }

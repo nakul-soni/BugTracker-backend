@@ -35,9 +35,19 @@ export class BugsService {
   }
 
   async create(data: any) {
-    return this.prisma.bug.create({
+    const bug = await this.prisma.bug.create({
       data,
     });
+
+    await this.prisma.activityLog.create({
+      data: {
+        entityType: 'BUG',
+        action: 'CREATED',
+        metadata: { bugId: bug.id, userId: data.reportedBy },
+      }
+    });
+
+    return bug;
   }
 
   async update(id: string, data: any, userId: string) {
@@ -115,12 +125,29 @@ export class BugsService {
     });
   }
 
-  async getAllActivity() {
-    const logs = await this.prisma.activityLog.findMany({
+  async getAllActivity(userId: string) {
+    const userProjects = await this.prisma.project.findMany({
+      where: { members: { some: { userId } } },
+      select: { id: true }
+    });
+    const projectIds = userProjects.map(p => p.id);
+
+    const allowedBugs = await this.prisma.bug.findMany({
+      where: { projectId: { in: projectIds } },
+      select: { id: true }
+    });
+    const allowedBugIds = new Set(allowedBugs.map(b => b.id));
+
+    const allLogs = await this.prisma.activityLog.findMany({
       where: { entityType: 'BUG' },
       orderBy: { createdAt: 'desc' },
-      take: 20
+      take: 200
     });
+
+    const logs = allLogs.filter(log => {
+      const metadata = log.metadata as any;
+      return metadata && metadata.bugId && allowedBugIds.has(metadata.bugId);
+    }).slice(0, 20);
 
     const userIds = [...new Set(logs.map(log => (log.metadata as any)?.userId).filter(Boolean))];
     const users = await this.prisma.user.findMany({

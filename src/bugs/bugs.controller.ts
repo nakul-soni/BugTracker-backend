@@ -23,8 +23,8 @@ export class BugsController {
   }
 
   @Get('activity/all')
-  getAllActivity() {
-    return this.bugsService.getAllActivity();
+  getAllActivity(@Request() req: any) {
+    return this.bugsService.getAllActivity(req.user.userId);
   }
 
   @Get(':id')
