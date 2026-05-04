@@ -36,7 +36,7 @@ model Project {
   id             String       @id @default(uuid())
   name           String
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   members        Member[]
   bugs           Bug[]
   createdAt      DateTime     @default(now())
@@ -48,8 +48,8 @@ model Member {
   userId    String
   projectId String
   role      Role     @default(TESTER)
-  user      User     @relation(fields: [userId], references: [id])
-  project   Project  @relation(fields: [projectId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -72,9 +72,9 @@ model Bug {
   assignedTo  String?
   reportedBy  String
   projectId   String
-  assignee    User?        @relation("Assignee", fields: [assignedTo], references: [id])
-  reporter    User         @relation("Reporter", fields: [reportedBy], references: [id])
-  project     Project      @relation(fields: [projectId], references: [id])
+  assignee    User?        @relation("Assignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  reporter    User         @relation("Reporter", fields: [reportedBy], references: [id], onDelete: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   comments    Comment[]
   attachments Attachment[]
   createdAt   DateTime     @default(now())
@@ -112,9 +112,9 @@ model Comment {
   userId          String
   parentCommentId String?
   content         String
-  bug             Bug          @relation(fields: [bugId], references: [id])
-  user            User         @relation(fields: [userId], references: [id])
-  parentComment   Comment?     @relation("Thread", fields: [parentCommentId], references: [id])
+  bug             Bug          @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentComment   Comment?     @relation("Thread", fields: [parentCommentId], references: [id], onDelete: Cascade)
   replies         Comment[]    @relation("Thread")
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -125,7 +125,7 @@ model Attachment {
   bugId     String
   fileUrl   String
   fileType  String
-  bug       Bug      @relation(fields: [bugId], references: [id])
+  bug       Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
 
